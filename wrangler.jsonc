@@ -1,0 +1,123 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "mailflare5",
+	"main": "./worker.ts",
+	"compatibility_date": "2026-05-20",
+	"keep_vars": true,
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"assets": {
+		"binding": "ASSETS",
+		"not_found_handling": "none",
+	},
+	"images": {
+		"binding": "IMAGES",
+	},
+	"services": [
+		{
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "mailflare",
+		},
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "REALTIME",
+				"class_name": "RealtimeHub",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"RealtimeHub",
+			],
+		},
+	],
+	"triggers": {
+		"crons": ["0 2 * * *", "*/5 * * * *"],
+	},
+	"ratelimits": [
+		{
+			"name": "LOGIN_RATE_LIMIT",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 20,
+				"period": 60,
+			},
+		},
+		{
+			"name": "DEVICE_LOGIN_RATE_LIMIT",
+			"namespace_id": "1003",
+			"simple": { "limit": 10, "period": 60 },
+		},
+		{
+			"name": "AGENT_RATE_LIMIT",
+			"namespace_id": "1002",
+			"simple": { "limit": 120, "period": 60 },
+		},
+	],
+	"observability": {
+		"enabled": true,
+		"traces": { "enabled": true },
+	},
+	"upload_source_maps": true,
+	"send_email": [
+		{
+			"name": "EMAIL",
+			"remote": false,
+		},
+	],
+	"ai": { "binding": "AI", "remote": true },
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "mailflare",
+			"migrations_dir": "drizzle/migrations","database_id": "68b4bf87-883a-45d1-a8ee-d9b7e64c1f66",
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "BUCKET",
+			"bucket_name": "mailflare-raw","preview_bucket_name": "mailflare-raw",
+		},
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "INBOUND_QUEUE",
+				"queue": "mailflare-inbound5",
+			},
+			{
+				"binding": "OUTBOUND_QUEUE",
+				"queue": "mailflare-outbound5",
+			},
+			{
+				"binding": "AGENT_QUEUE",
+				"queue": "mailflare-agent5",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "mailflare-inbound5",
+				"max_batch_size": 5,
+				"max_retries": 3,
+			},
+			{
+				"queue": "mailflare-outbound5",
+				"max_batch_size": 5,
+				// Sends wait out the undo window already; do not also wait for a batch to fill.
+				"max_batch_timeout": 1,
+				"max_retries": 3,
+			},
+			{
+				"queue": "mailflare-agent5",
+				"max_batch_size": 1,
+				"max_retries": 3,
+			},
+		],
+	},
+}
